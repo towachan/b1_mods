@@ -29,7 +29,7 @@ namespace EasyFengchuanhua
         public EasyFengchuanhua()
         {
             harmony = new Harmony(Name);
-            Harmony.DEBUG = true;
+            Harmony.DEBUG = false;
         }
 
         void ICSharpMod.Init()
