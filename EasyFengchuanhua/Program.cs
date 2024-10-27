@@ -60,14 +60,11 @@ namespace EasyFengchuanhua
         private static bool PrintOnExecuteEdge(ref BUS_PlayerInputActionComp __instance, FCalliopeEdge Edge)
         {
  
-            if(Edge.To.NodeGuid.ToString() == FOCUS_NODE_GUID) 
-            {
+            //if(Edge.To.NodeGuid.ToString() == FOCUS_NODE_GUID) 
+            //{
                 MyUtils.Log($"OnExecuteEdge: {Edge.From.NodeGuid} --> {Edge.To.NodeGuid}");
                 List<string> toKeys = new List<string>(Edge.To.OutputEdges.Keys);
-                toKeys.ForEach(key =>
-                {
-                    MyUtils.Log($"ToNode outputEdge's to: {key} / {Edge.To.OutputEdges[key].To.NodeGuid.ToString()}");
-                });
+                
 
                 if (toKeys.Contains(FOCUS_LEVEL_0)
                     && toKeys.Contains(FOCUS_LEVEL_1)
@@ -76,6 +73,12 @@ namespace EasyFengchuanhua
                     && toKeys.Contains(FOCUS_LEVEL_4)
                     && toKeys.Contains(FOCUS_LEVEL_5))
                 {
+
+                    toKeys.ForEach(key =>
+                    {
+                        MyUtils.Log($"ToNode outputEdge's to: {key} / {Edge.To.OutputEdges[key].To.NodeGuid.ToString()}");
+                    });
+
                     FCalliopeEdge focus4Edge = Edge.To.OutputEdges[FOCUS_LEVEL_4];
 
                     List<string> nodeKeys = new List<string>(focus4Edge.To.OutputEdges.Keys);
@@ -122,7 +125,7 @@ namespace EasyFengchuanhua
                     }
                 }
 
-            }
+            //}
 
             return true;
         }
