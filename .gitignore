@@ -79,3 +79,5 @@ ModelManifest.xml
 
 .vs
 .vscode
+
+build.cmd

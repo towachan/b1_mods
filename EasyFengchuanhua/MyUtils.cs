@@ -30,8 +30,7 @@ namespace EasyFengchuanhua
 
         public static BGUPlayerCharacterCS GetBGUPlayerCharacterCS()
         {
-            return (GetControlledPawn() as BGUPlayerCharacterCS)!;
-        }
+            return (GetControlledPawn() as BGUPlayerCharacterCS)!;        }
 
         public static BGP_PlayerControllerB1 GetPlayerController()
         {
@@ -86,7 +85,6 @@ namespace EasyFengchuanhua
             TextWriter tw = new StreamWriter(logfile, true);
             tw.WriteLine(message);
             tw.Close();
-            Console.WriteLine(message);
         }
 
         public static void Log(string message, string name = "EasyFengchuanhua")
@@ -96,7 +94,7 @@ namespace EasyFengchuanhua
             Console.WriteLine(fullMessage);
             
             // write to file, for dev
-            // LogToFile(message, name);
+            // LogToFile(fullMessage, name);
         }
 
         public static void logStackTrace(string name) {
