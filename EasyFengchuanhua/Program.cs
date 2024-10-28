@@ -71,10 +71,10 @@ namespace EasyFengchuanhua
                     node.OutputEdges.Keys.Contains(FOCUS_LEVEL_2) &&
                     node.OutputEdges.Keys.Contains(FOCUS_LEVEL_3) &&
                     node.OutputEdges.Keys.Contains(FOCUS_LEVEL_4) &&
-                    (node.OutputEdges.Keys.Contains(FOCUS_LEVEL_5) ||
+                    node.OutputEdges.Keys.Contains(FOCUS_LEVEL_5)
                     // special handling for Dasheng mode
-                    !node.InputEdges[node.InputEdges.Count - 1].From.OutputEdges.Keys.Contains("EAttackHeavyRelease")
-                    )) 
+                    //|| !node.InputEdges[node.InputEdges.Count - 1].From.OutputEdges.Keys.Contains("EAttackHeavyRelease"))
+                    )
                 {
                     if (node.OutputEdges[FOCUS_LEVEL_4].To.OutputEdges.Keys.Contains(FENGCHUANHUA_WIN))
                     {
