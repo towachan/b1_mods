@@ -16,7 +16,7 @@ namespace EasyFengchuanhua
     public class EasyFengchuanhua : ICSharpMod
     {
         public string Name => nameof (EasyFengchuanhua);
-        public string Version => "0.0.3";
+        public string Version => "0.0.4";
         private readonly Harmony harmony;
 
         private static string FOCUS_LEVEL_0 = "棍势等级0";
