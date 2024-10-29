@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using Google.Protobuf;
 using System.Linq;
 using System;
+using BtlShare;
+using System.Collections;
 
 namespace EasyFengchuanhua
 {
@@ -34,6 +36,8 @@ namespace EasyFengchuanhua
         private static Dictionary<Guid, FCalliopeNode> focusNodes { get; } = new Dictionary<Guid, FCalliopeNode>() ;
         private static FCalliopeEdge fengchuanhuaEdge = null;
         private static List<Guid> nodesContainFengchuanhua = new List<Guid>();
+
+        private static Queue<EInputActionType> inputQueue = new Queue<EInputActionType>() ;
 
         public EasyFengchuanhua()
         {
@@ -66,14 +70,17 @@ namespace EasyFengchuanhua
 
             graph.Nodes.ForEach(node =>
             {
-                if (node.OutputEdges.Keys.Contains(FOCUS_LEVEL_0) &&
-                    node.OutputEdges.Keys.Contains(FOCUS_LEVEL_1) &&
-                    node.OutputEdges.Keys.Contains(FOCUS_LEVEL_2) &&
-                    node.OutputEdges.Keys.Contains(FOCUS_LEVEL_3) &&
-                    node.OutputEdges.Keys.Contains(FOCUS_LEVEL_4) &&
-                    node.OutputEdges.Keys.Contains(FOCUS_LEVEL_5)
-                    // special handling for Dasheng mode
-                    //|| !node.InputEdges[node.InputEdges.Count - 1].From.OutputEdges.Keys.Contains("EAttackHeavyRelease"))
+                List<string> keys = new List<string>(node.OutputEdges.Keys);
+
+                //printNodeInfo(node);
+                if (keys.Contains(FOCUS_LEVEL_0) &&
+                    keys.Contains(FOCUS_LEVEL_1) &&
+                    keys.Contains(FOCUS_LEVEL_2) &&
+                    keys.Contains(FOCUS_LEVEL_3) &&
+                    keys.Contains(FOCUS_LEVEL_4) &&
+                    (node.OutputEdges.Keys.Contains(FOCUS_LEVEL_5)
+                        // special handling for Dasheng mode
+                        || !node.InputEdges[node.InputEdges.Count - 1].From.OutputEdges.Keys.Contains("EAttackHeavyRelease"))
                     )
                 {
                     if (node.OutputEdges[FOCUS_LEVEL_4].To.OutputEdges.Keys.Contains(FENGCHUANHUA_WIN))
@@ -88,12 +95,10 @@ namespace EasyFengchuanhua
                     
                     focusNodes[node.NodeGuid] = node;
                     MyUtils.Log($"Node [{node.NodeGuid}] with output keys: [{string.Join(",", node.OutputEdges.Keys)}] is cached.");
-                    MyUtils.Log($"Node [{node.NodeGuid}] with input keys: [{string.Join(",", node.InputEdges[node.InputEdges.Count - 1].From.OutputEdges.Keys)}] is cached.");
-                    
                 };
             });
 
-            if(focusNodes.Count > 0 && fengchuanhuaEdge != null)
+            if (focusNodes.Count > 0 && fengchuanhuaEdge != null)
             {
                 MyUtils.Log($"[{focusNodes.Count}] focus nodes and fengchuanhua edge cached.");
                 return true;
@@ -114,21 +119,62 @@ namespace EasyFengchuanhua
             return left.To.NodeGuid.Equals(right.To.NodeGuid);
         }
 
+        private static bool checkInputQueue()
+        {
+            bool inputQueueIsCorrect = false;
+
+            if (inputQueue.Count >= 3)
+            {
+                MyUtils.Log($"input queue is [{string.Join(",", inputQueue)}]");
+                if (string.Join(",", inputQueue).EndsWith($"Dodge,HeavyAttack,HeavyAttack"))
+                {
+                    inputQueueIsCorrect = true;
+                    inputQueue.Clear();
+                }
+            }
+
+            return inputQueueIsCorrect;
+        }
+
+        private static void printNodeInfo(FCalliopeNode node)
+        {
+            List<string> keys = new List<string>(node.OutputEdges.Keys);
+            if(keys.Any(key => key.StartsWith("棍势"))) {
+                MyUtils.Log($"Node is [{node.NodeGuid}] with edges [{string.Join(",", node.OutputEdges.Keys)}]");
+            }
+        }
+
+        [HarmonyPatch(typeof(BUS_PlayerInputActionComp), "OnInputCastSkill")]
+        [HarmonyPrefix]
+        private static bool BeforeOnInputCastSkill(EInputActionType InputActionType)
+        {
+            inputQueue.Enqueue(InputActionType);
+
+            if (inputQueue.Count > 5)
+            {
+                inputQueue.Dequeue();
+            }
+
+            return true;
+        }
+
         [HarmonyPatch(typeof(BUS_PlayerInputActionComp), "OnExecuteEdge")]
         [HarmonyPrefix]
-        private static bool PrintOnExecuteEdge(ref BUS_PlayerInputActionComp __instance, FCalliopeEdge Edge)
+        private static bool BeforeOnExecuteEdge(ref BUS_PlayerInputActionComp __instance, FCalliopeEdge Edge)
         {
             if(ready)
             {
-
                 FCalliopeNode nextNode = Edge.To;
+                //printNodeInfo(nextNode);
 
                 if (focusNodes.ContainsKey(nextNode.NodeGuid)) {
+
                     MyUtils.Log($"Next node [{nextNode.NodeGuid}] found in cache.");
                     
-                    List<CalliopeCustom_ComboCondition> list = GetNodeCustomData<ComboCustom_Start>(Edge.To).ComboConditions.ToList<CalliopeCustom_ComboCondition>();
+                    List<CalliopeCustom_ComboCondition> list = GetNodeCustomData<ComboCustom_Start>(nextNode).ComboConditions.ToList<CalliopeCustom_ComboCondition>();
 
                     string? matchedFocus = null;
+                    CalliopeCustom_ComboCondition matchedComboCondition = null;
                     for (int index = 0; index < list.Count; ++index)
                     {
                         CalliopeCustom_ComboCondition ComboCondition = list[index];
@@ -137,6 +183,7 @@ namespace EasyFengchuanhua
                         {
                             MyUtils.Log($"ComboCondition matched: [{ComboCondition.ConditionIdentity}]");
                             matchedFocus = ComboCondition.ConditionIdentity;
+                            matchedComboCondition = ComboCondition;
                             break;
                         }
                     }
@@ -148,29 +195,27 @@ namespace EasyFengchuanhua
                             MyUtils.Log($"Focus level is > 4 or is thrust node with focus level 4 - skip patch edge.");
                         } else
                         {
-                            CalliopeCustom_ComboCondition dodgeWin = new CalliopeCustom_ComboCondition();
-                            dodgeWin.UnitState = (int)EBGUUnitState.InDodgeWindow;
-                            bool dodgeState = (bool)__instance.CallPrivateFunc("OnCheckUnitState", [dodgeWin]);
+                            CalliopeCustom_ComboCondition condition = new CalliopeCustom_ComboCondition();
+
+                            condition.UnitState = (int)EBGUUnitState.InDodgeWindow;
+                            bool dodgeState = (bool)__instance.CallPrivateFunc("OnCheckUnitState", [condition]);
                             MyUtils.Log($"dodgeState is [{dodgeState}].");
 
 
-                            if (!dodgeState)
+                            if (!dodgeState || !checkInputQueue())
                             {
                                 if (!compareEdge(
-                                    Edge.To.OutputEdges[matchedFocus],
+                                    nextNode.OutputEdges[matchedFocus],
                                     focusNodes[nextNode.NodeGuid].OutputEdges[matchedFocus]))
                                 {
-                                    MyUtils.Log($"Not in dodge window - fallback patch.");
-                                    Edge.To.OutputEdges[matchedFocus] = focusNodes[nextNode.NodeGuid].OutputEdges[matchedFocus];
+                                    MyUtils.Log($"Not in dodge window or input is not matched - fallback patch.");
+                                    nextNode.OutputEdges[matchedFocus] = focusNodes[nextNode.NodeGuid].OutputEdges[matchedFocus];
                                 }
                             }
-                            else
+                            else if (!compareEdge(nextNode.OutputEdges[matchedFocus], fengchuanhuaEdge))
                             {
-                                if (!compareEdge(Edge.To.OutputEdges[matchedFocus], fengchuanhuaEdge))
-                                {
-                                    MyUtils.Log($"Fengchuanhua patched !");
-                                    Edge.To.OutputEdges[matchedFocus] = fengchuanhuaEdge;
-                                }
+                                MyUtils.Log($"Fengchuanhua patched !");
+                                nextNode.OutputEdges[matchedFocus] = fengchuanhuaEdge;
                             }
                         }
                     }
